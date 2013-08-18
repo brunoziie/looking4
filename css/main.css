@@ -1,0 +1,4 @@
+body{margin:0;padding: 0;}
+
+
+section#stage{border: 1px solid #CCC; width: 640px; height: 480px; margin: 0 auto;background-image: url(../img/cream_pixels.png);}
