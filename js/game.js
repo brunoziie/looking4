@@ -200,9 +200,6 @@ var Game = (function(global, doc){
 					if (before.isCurve === false) {
 						tile = this.getTileToNextMove(before.direction);
 						this.drawAt(before.x, before.y, tile);
-
-
-						console.log(tile);
 					} else {}
 				} else {
 					console.log('caguei aki');
@@ -243,7 +240,7 @@ var Game = (function(global, doc){
 		gameOver: function () {
 			clearInterval(Engine.interval);
 			this.isStarted = false;
-			console.log('Oh not! It`s over ;(');
+			alert('Oh not! It`s over ;(');
 			console.log(RoundRecorder.timeline);
 		},
 
