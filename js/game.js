@@ -1,6 +1,6 @@
 var Game = (function(global, doc){
 
-	var Game, Sprite, SpriteMap, SpriteMapCurves, Stage, GameCanvas, Const, Engine, Directions;
+	var Game, Sprite, SpriteMap, SpriteMapCurves, Stage, GameCanvas, Const, Engine, Directions, RoundRecorder;
 
 	/**
 	 * Constants
@@ -8,7 +8,7 @@ var Game = (function(global, doc){
 	 */
 	Const = {
 		TILE_SIZE: 20,
-		GAME_SPEED: 40, // miliseconds
+		GAME_SPEED: 100, // miliseconds
 		UP: 0,
 		RIGHT: 1,
 		DOWN: 2,
@@ -57,6 +57,37 @@ var Game = (function(global, doc){
 		current: 0
 	};
 
+	RoundRecorder = {
+		IS_CURVE: true,
+
+		timeline: [],
+
+		record: function (x, y, direction) {
+			this.timeline.push({x: x, y: y, direction: direction, isCurve: false});
+		},
+
+		backInTheTime: function (n) {
+			var len = this.timeline.length;
+			return this.timeline[len - 1 - n] || undefined;
+		},
+
+		chancePast: function (i, x, y, direction, isCurve) {
+			this.timeline[i] = {x: x, y: y, direction: direction, isCurve: isCurve || false};
+		},
+
+		prevPosition: function () {
+			return this.backInTheTime(0);
+		},
+
+		lastIndex: function () {
+			return this.timeline.length - 1;
+		},
+
+		reset: function () {
+			this.timeline = [];
+		}
+	};
+
 	Game = {
 		isStarted: false, 
 
@@ -79,7 +110,6 @@ var Game = (function(global, doc){
 
 			this.bindKeyEvents();
 
-			this.run();
 			return this;
 		},
 
@@ -99,6 +129,12 @@ var Game = (function(global, doc){
 			var tileSize = Const.TILE_SIZE,
 				coords = this.getCoords(x, y),
 				spriteCoords = this.getTileCoordsByName(spriteName);
+
+			if (!spriteCoords) {
+				console.log(arguments);
+				this.gameOver();
+				return;
+			}
 
 			Stage.drawImage(Sprite, spriteCoords[0], spriteCoords[1], tileSize, tileSize, coords[0], coords[1], tileSize, tileSize);
 		},
@@ -149,33 +185,56 @@ var Game = (function(global, doc){
 			}
 		},
 
-
 		goToNext: function () {
 			var next = this.canGoNext(),
-				tile;
+				dirs = ['UP', 'RIGHT', 'DOWN', 'LEFT'],
+				before,
+				beforeBefore,
+				tile,
+				n;
 
 			if (next !== false) {
-				tile = this.getTileToNextMove();
-				Directions.previous = Directions.current;
-				this.drawAt(next[0], next[1], tile);
-				this.position = next;
+				if (RoundRecorder.prevPosition() !== undefined) {
+					before = RoundRecorder.prevPosition();
 
-				if (!this.canGoNext()) this.gameOver();
+					if (before.isCurve === false) {
+						tile = this.getTileToNextMove(before.direction);
+						this.drawAt(before.x, before.y, tile);
+
+
+						console.log(tile);
+					} else {}
+				} else {
+					console.log('caguei aki');
+				}
+
+				this.position = next;
+				RoundRecorder.record(next[0], next[1], Directions.current);
+				Directions.previous = Directions.current;
+
+				this.drawAt(next[0], next[1], 'HAND_' + dirs[Directions.current]);
+
+
+				n = this.canGoNext();
+
+				if (n === false) {
+					this.gameOver();
+				}
 			}
 		},
 
-		getTileToNextMove: function () {
-			var tile = '';
+		getTileToNextMove: function (dir) {
+			var direction = dir || Directions.current,
+				tile = '';
 
-			if (Directions.current === Const.LEFT || Directions.current === Const.RIGHT) {
+			if (direction === Const.LEFT || direction === Const.RIGHT) {
 				tile = 'ARMS_H';
-			} else if (Directions.current === Const.UP || Directions.current === Const.DOWN) {
+			} else if (direction === Const.UP || direction === Const.DOWN) {
 				tile = 'ARMS_V';
 			}
 
 			return tile;
 		},
-
 
 		getTileCoordsByName: function (name) {
 			return SpriteMap['' + name + ''] || SpriteMapCurves['' + name + ''];
@@ -184,7 +243,8 @@ var Game = (function(global, doc){
 		gameOver: function () {
 			clearInterval(Engine.interval);
 			this.isStarted = false;
-			alert('Oh not! It`s over ;(');
+			console.log('Oh not! It`s over ;(');
+			console.log(RoundRecorder.timeline);
 		},
 
 		changeDirectionOnKeyPress: function (event) {
@@ -228,7 +288,11 @@ var Game = (function(global, doc){
 				}
 
 				if (newDirection !== Directions.previous) {
-					Directions.previous = Directions.current;
+					
+					RoundRecorder.chancePast(RoundRecorder.lastIndex(), this.position[0], this.position[1], Directions.current, RoundRecorder.IS_CURVE);
+
+					console.log(RoundRecorder.backInTheTime(0));
+
 					Directions.current = newDirection;
 					this.fixMoveCurve(dirs[Directions.previous] + dirs[Directions.current]);
 				}
@@ -251,3 +315,8 @@ var Game = (function(global, doc){
 	return Game.init();
 
 }(window, document));
+
+
+document.getElementById('start').onclick = function () {
+	Game.run();
+};
