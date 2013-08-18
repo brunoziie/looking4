@@ -8,7 +8,7 @@ var Game = (function(global, doc){
 	 */
 	Const = {
 		TILE_SIZE: 20,
-		GAME_SPEED: 100, // miliseconds
+		GAME_SPEED: 40, // miliseconds
 		UP: 0,
 		RIGHT: 1,
 		DOWN: 2,
