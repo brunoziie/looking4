@@ -315,7 +315,7 @@ var Game = (function(global, doc){
 			}
 
 
-			if (x <= 0 || y <= 0 || x >= this.stageSize.h || y >= this.stageSize.v  || !Map.canIGoTo(goToX, goToY)) {
+			if (goToX < 0 || goToY < 0 || Map.canIGoTo(goToX, goToY) === false) {
 				return false;
 			} else {
 				return [goToX, goToY];
@@ -347,11 +347,11 @@ var Game = (function(global, doc){
 				this.drawAt(next[0], next[1], 'HAND_' + dirs[Directions.current]);
 
 				if (Map.hasItemIn(next[0], next[1])) {
-					console.log('i got a key');
 					this.updateScore();
 				}
 
 			} else {
+				console.log('parou por nao poder ir pro proximo')
 				this.gameOver();
 			}
 		},
