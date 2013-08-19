@@ -1,6 +1,23 @@
+var Level1 = {
+	itens: [
+		// x, y, tile name 
+		[3, 10, 'KEY'],
+		[9, 10, 'KEY'],
+		[15, 10, 'KEY'],
+		[28, 19, 'KEY'],
+		[19, 13, 'KEY'],
+		[10, 20, 'KEY'],
+	],
+	ambient: [],
+	endPosition: {
+		x: 10,
+		y: 0
+	}
+}
+
 var Game = (function(global, doc){
 
-	var Game, Sprite, SpriteMap, SpriteMapCurves, Stage, GameCanvas, Const, Engine, Directions, RoundRecorder;
+	var Game, Sprite, SpriteMap, SpriteMapCurves, Stage, GameCanvas, Const, Engine, Directions, RoundRecorder, Map, Score;
 
 	/**
 	 * Constants
@@ -8,11 +25,111 @@ var Game = (function(global, doc){
 	 */
 	Const = {
 		TILE_SIZE: 20,
-		GAME_SPEED: 40, // miliseconds
+		GAME_SPEED: 80, // miliseconds
 		UP: 0,
 		RIGHT: 1,
 		DOWN: 2,
-		LEFT: 3
+		LEFT: 3,
+		IS_NOT_A_BLOCK: true,
+		I_WAS_NOT_HERE: false
+	};
+
+	Map = {
+		ambient: [],
+		itens: [],
+		playerPositions: [],
+		itensInMap: 0,
+		endPoint: [0, 0],
+
+		createMap: function (rows, columns) {
+			var i, x;
+
+			this.itens = [];
+			this.ambient = [];
+			this.playerPositions = [];
+
+			for (i = 0; i < rows; i += 1) {
+				this.ambient.push([]);
+
+				for (x = 0; x < columns; x += 1) {
+					this.ambient[i].push(true);
+				}				
+			}
+
+			for (i = 0; i < rows; i += 1) {
+				this.itens.push([]);
+
+				for (x = 0; x < columns; x += 1) {
+					this.itens[i].push(false);
+				}				
+			}
+
+			for (i = 0; i < rows; i += 1) {
+				this.playerPositions.push([]);
+
+				for (x = 0; x < columns; x += 1) {
+					this.playerPositions[i].push(false);
+				}				
+			}
+		},
+
+		addItensToMap: function (itens) {
+			var i,
+				x,
+				y,
+				val,
+				len = itens.length;
+
+			for (i = 0; i < len; i += 1) {
+				x = itens[i][0]; 
+				y = itens[i][1];
+				val = itens[i][2] || false;
+
+				this.itens[x][y] = val;
+
+				Game.drawAt(x, y, val);
+			}
+
+			this.itensInMap = len;
+		},
+
+		addBlockToAmbient: function (blocks) {
+			var i,
+				x,
+				y,
+				val,
+				len = blocks.length;
+
+			for (i = 0; i < len; i += 1) {
+				x = blocks[i][0]; 
+				y = blocks[i][1];
+				val = blocks[i][2] || false;
+
+				this.ambient[x][y] = val;
+
+				Game.drawAt(x, y, val);
+			}
+		},
+
+		canIGoTo: function (x, y) {
+			if (x < this.ambient.length && y < this.ambient[0].length) {
+				return (this.ambient[x][y] === Const.IS_NOT_A_BLOCK && this.playerPositions[x][y] === Const.I_WAS_NOT_HERE) ? true : false;
+			}
+			return false;
+		},
+
+		hasItemIn: function (x, y) {
+			return (this.itens[x][y] !== false) ? true : false;
+		},
+
+		recordPlayerPosition: function (x, y) {
+			this.playerPositions[x][y] = !Const.I_WAS_NOT_HERE;
+			console.log(this.playerPositions[x][y]);
+		},
+
+		getMap: function () {
+			return this;
+		}
 	};
 
 	/**
@@ -89,7 +206,11 @@ var Game = (function(global, doc){
 	};
 
 	Game = {
-		isStarted: false, 
+		currentLevel: null,
+
+		isStarted: false,
+
+		colletedItens: 0,
 
 		position: [15, 23],
 
@@ -104,6 +225,7 @@ var Game = (function(global, doc){
 			GameCanvas.height = 480;
 
 			Stage = GameCanvas.getContext('2d');
+			Score = doc.getElementById('score');
 
 			Sprite = new Image();
 			Sprite.src = 'img/sprites.png';
@@ -113,8 +235,22 @@ var Game = (function(global, doc){
 			return this;
 		},
 
-		loadMap: function () {
-			// Implements this after
+		reload: function () {
+			this.colletedItens = 0;
+			this.position = [15, 23];
+			Directions = {previous: 0, current: 0};
+
+			Score.innerText = 0;
+			this.clearMap();
+			this.loadMap(this.currentLevel);
+			RoundRecorder.reset();
+		},
+
+		loadMap: function (level) {
+			this.currentLevel = level;
+			Map.createMap(this.stageSize.h, this.stageSize.v);
+			Map.addItensToMap(level.itens);
+			Map.addBlockToAmbient(level.ambient);
 		},
 
 		getCoords: function (x, y) {
@@ -178,7 +314,8 @@ var Game = (function(global, doc){
 					goToX = x;
 			}
 
-			if (x <= 0 || y <= 0 || x >= this.stageSize.h || y >= this.stageSize.v) {
+
+			if (x <= 0 || y <= 0 || x >= this.stageSize.h || y >= this.stageSize.v  || !Map.canIGoTo(goToX, goToY)) {
 				return false;
 			} else {
 				return [goToX, goToY];
@@ -189,7 +326,6 @@ var Game = (function(global, doc){
 			var next = this.canGoNext(),
 				dirs = ['UP', 'RIGHT', 'DOWN', 'LEFT'],
 				before,
-				beforeBefore,
 				tile,
 				n;
 
@@ -200,26 +336,23 @@ var Game = (function(global, doc){
 					if (before.isCurve === false) {
 						tile = this.getTileToNextMove(before.direction);
 						this.drawAt(before.x, before.y, tile);
-
-
-						console.log(tile);
-					} else {}
-				} else {
-					console.log('caguei aki');
+					}
 				}
 
 				this.position = next;
 				RoundRecorder.record(next[0], next[1], Directions.current);
+				Map.recordPlayerPosition(next[0], next[1]);
 				Directions.previous = Directions.current;
 
 				this.drawAt(next[0], next[1], 'HAND_' + dirs[Directions.current]);
 
-
-				n = this.canGoNext();
-
-				if (n === false) {
-					this.gameOver();
+				if (Map.hasItemIn(next[0], next[1])) {
+					console.log('i got a key');
+					this.updateScore();
 				}
+
+			} else {
+				this.gameOver();
 			}
 		},
 
@@ -243,8 +376,13 @@ var Game = (function(global, doc){
 		gameOver: function () {
 			clearInterval(Engine.interval);
 			this.isStarted = false;
-			console.log('Oh not! It`s over ;(');
-			console.log(RoundRecorder.timeline);
+			alert('Oh not! It`s over ;(');
+		},
+
+		levelCompleted: function () {
+			clearInterval(Engine.interval);
+			this.isStarted = false;
+			alert('You won!');
 		},
 
 		changeDirectionOnKeyPress: function (event) {
@@ -252,7 +390,7 @@ var Game = (function(global, doc){
 				newDirection,
 				dirs = ['U', 'R', 'D', 'L'];
 
-			if (this.isStarted ) {
+			if (this.isStarted) {
 				switch (event.keyCode) {
 					case 37: 
 						newDirection = Const.LEFT;
@@ -288,15 +426,10 @@ var Game = (function(global, doc){
 				}
 
 				if (newDirection !== Directions.previous) {
-					
-					RoundRecorder.chancePast(RoundRecorder.lastIndex(), this.position[0], this.position[1], Directions.current, RoundRecorder.IS_CURVE);
-
-					console.log(RoundRecorder.backInTheTime(0));
-
 					Directions.current = newDirection;
-					this.fixMoveCurve(dirs[Directions.previous] + dirs[Directions.current]);
+					RoundRecorder.chancePast(RoundRecorder.lastIndex(), this.position[0], this.position[1], Directions.current, RoundRecorder.IS_CURVE);
+					this.fixMoveCurve(dirs[current] + dirs[Directions.current]);
 				}
-
 			}
 		},
 
@@ -309,6 +442,27 @@ var Game = (function(global, doc){
 			doc.onkeydown = function (e) {
 				Game.changeDirectionOnKeyPress(e);
 			};
+		},
+
+		clearMap: function () {
+			cv = document.createElement('canvas');
+			cv.width = 640;
+			cv.height = 480;
+			cv.id = 'game';
+
+			GameCanvas.remove();
+			doc.getElementById('stage').appendChild(cv);
+
+			GameCanvas = doc.getElementById('game');
+			Stage = GameCanvas.getContext('2d');
+		},
+
+		updateScore: function () {
+			this.colletedItens += 1;
+			Score.innerText = this.colletedItens;
+			if (this.colletedItens === Map.itensInMap) {
+				this.levelCompleted();
+			}
 		}
 	};
 
@@ -318,5 +472,12 @@ var Game = (function(global, doc){
 
 
 document.getElementById('start').onclick = function () {
+	Game.loadMap(Level1);
 	Game.run();
+
+	this.onclick = function () {
+		Game.reload();
+		Game.run();
+	}
+	this.innerText = 'Relaod';
 };
