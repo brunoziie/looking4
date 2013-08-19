@@ -1,136 +1,5 @@
-var Level1 = {
-	itens: [
-		// x, y, tile name 
-		[3, 10, 'KEY'],
-		[9, 10, 'KEY'],
-		[15, 10, 'KEY'],
-		[28, 19, 'KEY'],
-		[19, 13, 'KEY'],
-		[10, 20, 'KEY'],
-	],
-	ambient: [],
-	endPosition: {
-		x: 10,
-		y: 0
-	}
-}
-
-var Game = (function(global, doc){
-
-	var Game, Sprite, SpriteMap, SpriteMapCurves, Stage, GameCanvas, Const, Engine, Directions, RoundRecorder, Map, Score;
-
-	/**
-	 * Constants
-	 * @type {Object}
-	 */
-	Const = {
-		TILE_SIZE: 20,
-		GAME_SPEED: 80, // miliseconds
-		UP: 0,
-		RIGHT: 1,
-		DOWN: 2,
-		LEFT: 3,
-		IS_NOT_A_BLOCK: true,
-		I_WAS_NOT_HERE: false
-	};
-
-	Map = {
-		ambient: [],
-		itens: [],
-		playerPositions: [],
-		itensInMap: 0,
-		endPoint: [0, 0],
-
-		createMap: function (rows, columns) {
-			var i, x;
-
-			this.itens = [];
-			this.ambient = [];
-			this.playerPositions = [];
-
-			for (i = 0; i < rows; i += 1) {
-				this.ambient.push([]);
-
-				for (x = 0; x < columns; x += 1) {
-					this.ambient[i].push(true);
-				}				
-			}
-
-			for (i = 0; i < rows; i += 1) {
-				this.itens.push([]);
-
-				for (x = 0; x < columns; x += 1) {
-					this.itens[i].push(false);
-				}				
-			}
-
-			for (i = 0; i < rows; i += 1) {
-				this.playerPositions.push([]);
-
-				for (x = 0; x < columns; x += 1) {
-					this.playerPositions[i].push(false);
-				}				
-			}
-		},
-
-		addItensToMap: function (itens) {
-			var i,
-				x,
-				y,
-				val,
-				len = itens.length;
-
-			for (i = 0; i < len; i += 1) {
-				x = itens[i][0]; 
-				y = itens[i][1];
-				val = itens[i][2] || false;
-
-				this.itens[x][y] = val;
-
-				Game.drawAt(x, y, val);
-			}
-
-			this.itensInMap = len;
-		},
-
-		addBlockToAmbient: function (blocks) {
-			var i,
-				x,
-				y,
-				val,
-				len = blocks.length;
-
-			for (i = 0; i < len; i += 1) {
-				x = blocks[i][0]; 
-				y = blocks[i][1];
-				val = blocks[i][2] || false;
-
-				this.ambient[x][y] = val;
-
-				Game.drawAt(x, y, val);
-			}
-		},
-
-		canIGoTo: function (x, y) {
-			if (x < this.ambient.length && y < this.ambient[0].length) {
-				return (this.ambient[x][y] === Const.IS_NOT_A_BLOCK && this.playerPositions[x][y] === Const.I_WAS_NOT_HERE) ? true : false;
-			}
-			return false;
-		},
-
-		hasItemIn: function (x, y) {
-			return (this.itens[x][y] !== false) ? true : false;
-		},
-
-		recordPlayerPosition: function (x, y) {
-			this.playerPositions[x][y] = !Const.I_WAS_NOT_HERE;
-			console.log(this.playerPositions[x][y]);
-		},
-
-		getMap: function () {
-			return this;
-		}
-	};
+(function(global, doc){
+	var Game, Sprite, SpriteMap, SpriteMapCurves, Stage, GameCanvas, Engine, Directions, RoundRecorder, Score;
 
 	/**
 	 * Sprites maps coords in XY format
@@ -315,7 +184,7 @@ var Game = (function(global, doc){
 			}
 
 
-			if (x <= 0 || y <= 0 || x >= this.stageSize.h || y >= this.stageSize.v  || !Map.canIGoTo(goToX, goToY)) {
+			if (goToX < 0 || goToY < 0 || Map.canIGoTo(goToX, goToY) === false) {
 				return false;
 			} else {
 				return [goToX, goToY];
@@ -347,11 +216,11 @@ var Game = (function(global, doc){
 				this.drawAt(next[0], next[1], 'HAND_' + dirs[Directions.current]);
 
 				if (Map.hasItemIn(next[0], next[1])) {
-					console.log('i got a key');
 					this.updateScore();
 				}
 
 			} else {
+				console.log('parou por nao poder ir pro proximo')
 				this.gameOver();
 			}
 		},
@@ -466,7 +335,7 @@ var Game = (function(global, doc){
 		}
 	};
 
-	return Game.init();
+	return global.Game = Game.init();
 
 }(window, document));
 
